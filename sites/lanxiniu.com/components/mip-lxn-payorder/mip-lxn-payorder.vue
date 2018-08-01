@@ -55,8 +55,8 @@
     <div class="footer">
       <p class="baoxian"><span class="img safe"/><span class="safe-span">免费提供5000元搬家服务险,服务前40分钟外,免费取消</span></p>
       <p
-        on="tap:payElement.toggle "
-        class="btn">
+        class="btn"
+        @click="payOrders">
         确认支付
       </p>
     </div>
@@ -65,7 +65,7 @@
 
 <script>
 import base from '../../common/utils/base'
-import '../../common/utils/base.css'
+import '../../common/utils/base.less'
 base.setHtmlRem()
 export default {
   props: {
@@ -74,6 +74,10 @@ export default {
       default: function () { return {} }
     },
     payConfig: {
+      type: Object,
+      default: function () { return {} }
+    },
+    userlogin: {
       type: Object,
       default: function () { return {} }
     }
@@ -101,7 +105,8 @@ export default {
           billName: '-',
           billMount: '-'
         }
-      ]
+      ],
+      interval: ''
     }
   },
   watch: {
@@ -113,88 +118,133 @@ export default {
     console.log('创建数据')
 
     console.log(this.globaldata)
-    this.setList()
+    // this.setList()
   },
   mounted () {
+    window.addEventListener('hide-page', (e) => {
+      this.interval && clearInterval(this.interval)
+    })
+    this.setList()
     console.log('这里是支付页面 !')
-    this.initData()
     this.clickRipple()
+    this.$element.customElement.addEventAction('login', (event, str) => {
+      this.interval = setInterval(() => {
+        if (this.userlogin.sessionId !== '') {
+          this.initData()
+          clearInterval(this.interval)
+        }
+      }, 200)
+    })
+
+    if (this.userlogin.sessionId !== '') {
+      this.initData()
+    }
 
     // $emit
   },
   methods: {
     //   初始化数据
     initData () {
-      var lxndata = base.getSession()
-      var orderNum = lxndata.order.OrderNum
-      var price = lxndata.order.billTotal
-      var sessionid = base.getbaiduLogMsg()
-      console.log('token:' + sessionid + '======' + 'orderNum:' + orderNum)
-
-      var obj = {
-        sessionId: sessionid,
-        redirectUrl: 'https://www.lanxiniu.com/Pay/success',
-        fee: price,
-        postData: {
-          orderNum: orderNum,
-          token: sessionid
-        }
-      }
-      MIP.setData({
-        payConfig: obj
+    //   let lxndata = base.getSession()
+      //   let orderNum = lxndata.order.OrderNum
+      let orderNum = base.getRequest().OrderNum
+      let sessionid = this.userlogin.sessionId
+      let urlsParam = base.setUrlParam({
+        orderNum: orderNum,
+        sessionId: sessionid
       })
+      let urls = base.url + '/Order/detail?' + urlsParam
+      fetch(urls, {
+        method: 'get'
+      })
+        .then(response => response.json())
+        .catch(error => console.error('Error:', error))
+        .then(response => {
+          let data = response.data
+          console.log(data)
+          let poiList = data.poiList
+          // 列表
+          let billinfos = data.billinfo
+          let floorData = [
+            '有电梯',
+            '无电梯1楼',
+            '无电梯2楼',
+            '无电梯3楼',
+            '无电梯4楼',
+            '无电梯5楼',
+            '无电梯6楼',
+            '无电梯7楼',
+            '无电梯8楼'
+          ]
+          // 头部
+          this.head = {
+            time: data.TransTime,
+            moveOut: poiList[0].deliverAddress,
+            moveIn: poiList[1].deliverAddress,
+            carType: data.CarTypeName,
+            moveOutfloor: floorData[data.start_stairs_num],
+            moveInfloor: floorData[data.end_stairs_num]
+          }
+
+          billinfos.push({
+            billName: '合计',
+            billMount: data.billTotal
+          })
+          this.pillList = billinfos
+        })
     },
 
     // 请求订单数据
     setList () {
-      var _this = this
-      var data = base.getSession()
+      let _this = this
+      let data = base.getSession()
       console.log('查看订单信息============')
       console.log(data)
-
-      var order = data.order
-      var poiList = order.poiList
-      var floorData = [
-        '有电梯',
-        '无电梯1楼',
-        '无电梯2楼',
-        '无电梯3楼',
-        '无电梯4楼',
-        '无电梯5楼',
-        '无电梯6楼',
-        '无电梯7楼',
-        '无电梯8楼'
-      ]
-      // 头部
-      _this.head = {
-        time: order.TransTime,
-        moveOut: poiList[0].deliverAddress,
-        moveIn: poiList[1].deliverAddress,
-        carType: order.CarTypeName,
-        moveOutfloor: floorData[data.moveOutNum],
-        moveInfloor: floorData[data.moveInNum]
+      if (data !== null) {
+        let order = data.order
+        let poiList = order.poiList
+        let floorData = [
+          '有电梯',
+          '无电梯1楼',
+          '无电梯2楼',
+          '无电梯3楼',
+          '无电梯4楼',
+          '无电梯5楼',
+          '无电梯6楼',
+          '无电梯7楼',
+          '无电梯8楼'
+        ]
+        // 头部
+        _this.head = {
+          time: order.TransTime,
+          moveOut: poiList[0].deliverAddress,
+          moveIn: poiList[1].deliverAddress,
+          carType: order.CarTypeName,
+          moveOutfloor: floorData[data.moveOutNum],
+          moveInfloor: floorData[data.moveInNum]
+        }
+        // 列表
+        let billinfos = order.billinfo
+        billinfos.push({
+          billName: '合计',
+          billMount: order.billTotal
+        })
+        _this.pillList = billinfos
       }
-      // 列表
-      var billinfos = order.billinfo
-      billinfos.push({
-        billName: '合计',
-        billMount: order.billTotal
-      })
-      _this.pillList = billinfos
     },
     // 点击波纹效果
     clickRipple () {
-      var util = MIP.util
+      let util = MIP.util
       util.event.delegate(
         this.$element,
         '.btn',
         'click',
         function (e) {
-          var target = e.target
+          let target = e.target
           console.log(target)
           if (target.className.indexOf('btn') > -1) {
-            var rect = target.getBoundingClientRect()
-            var ripple = target.querySelector('.ripple')
+            let rect = target.getBoundingClientRect()
+            let ripple = target.querySelector('.ripple')
             if (!ripple) {
               ripple = document.createElement('span')
               ripple.className = 'ripple'
@@ -203,12 +253,12 @@ export default {
               target.appendChild(ripple)
             }
             ripple.classList.remove('show')
-            var top =
+            let top =
               e.pageY -
               rect.top -
               ripple.offsetHeight / 2 -
               document.body.scrollTop
-            var left =
+            let left =
               e.pageX -
               rect.left -
               ripple.offsetWidth / 2 -
@@ -222,7 +272,32 @@ export default {
       )
     },
     //   支付
-    pay () {}
+    payOrders () {
+      let lxndata = base.getSession()
+      let orderNum = lxndata.order.OrderNum
+      let price = lxndata.order.billTotal
+      //   let sessionid = base.getbaiduLogMsg()
+      let sessionid = this.userlogin.sessionId
+      console.log('token:' + sessionid + '======' + 'orderNum:' + orderNum)
+      let urlsParam = base.setUrlParam({
+        orderNum: orderNum,
+        sessionId: sessionid,
+        total_fee: price
+      })
+      let obj = {
+        sessionId: sessionid,
+        redirectUrl: 'https://www.lanxiniu.com/Pay/success?' + urlsParam,
+        fee: price,
+        postData: {
+          orderNum: orderNum,
+          token: sessionid
+        }
+      }
+      MIP.setData({
+        payConfig: MIP.util.fn.extend({}, this.payConfig, obj)
+      })
+      this.$emit('actionPay', {})
+    }
   }
 }
 </script>

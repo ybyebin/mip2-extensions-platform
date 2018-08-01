@@ -2,7 +2,6 @@
   <div class="wrapper">
     <div id="l-map"/>
     <div
-      v-show="init"
       class="search-content">
       <div class="head">
         <a
@@ -41,7 +40,6 @@
       </div>
     </div>
     <div
-      v-show="init"
       class="search-result content">
       <ul>
         <li
@@ -52,6 +50,10 @@
             <p v-text="moveOut.localtion.title"/>
             <p v-text="moveOut.localtion.address"/>
           </div>
+          <input
+            :readonly="true"
+            type="text"
+            class="fixsafari-click">
         </li>
         <li class="result-input">
           <div>
@@ -62,13 +64,16 @@
               placeholder="具体街道  门牌号">
           </div>
         </li>
-        <li class="result-input">
+        <li
+          @
+          class="result-input">
           <div>
             <span class="img lianxiren"/>
             <input
               v-model="moveOut.phone"
               type="number"
               placeholder="联系方式(必填)">
+
             <p
               class="btn-sure btn"
               @click="moveoutSure">确定</p>
@@ -86,7 +91,7 @@
           v-text="warn.texts"/>
         <p
           class="layer-sure active-layer"
-          @click="closeLayer">知道了</p>
+          @touchend="closeLayer">知道了</p>
       </div>
     </div>
     <div
@@ -96,13 +101,15 @@
         <span class="point-first"/><span class="point-second"/><span class="point-last"/>
       </div>
     </div>
+
   </div>
 </template>
 
 <script>
 import base from '../../common/utils/base'
 import map from '../../common/utils/map'
-import '../../common/utils/base.css'
+import '../../common/utils/base.less'
+
 base.setHtmlRem()
 export default {
   directives: {
@@ -123,7 +130,8 @@ export default {
   data () {
     return {
       maps: '',
-      init: true, // 加载完成后 显示
+      init: true, // 数据初始化话完成   只执行一次,
+      interval: '', // 轮询查询全局数据是否合并完成
       searchVal: '',
       searchHandler: '',
       searchData: [],
@@ -150,50 +158,57 @@ export default {
   },
   mounted () {
     console.log('这里是搬出地址选择页面 !')
-    // console.log(this.globaldata)
-
-    // 初始化
-    this.initData()
-
-    // 数据监控
-    this.lxnDataWatch()
-
-    this.$element.customElement.addEventAction('init', () => {
-      console.log(1111)
-      this.BMap = MIP.sandbox.BMap
-      this.mapInit()
-      console.log(this.BMap)
+    window.addEventListener('hide-page', (e) => {
+      this.interval && clearInterval(this.interval)
     })
+    this.initData()
   },
 
-  beforeDestroy () {
-    console.log('=+=+=+=+=+=+=+')
-  },
-  destroyed () {
-    console.log('销毁销毁')
-  },
   methods: {
     // 基本数据初始化
     initData () {
-      if (Object.keys(this.globaldata).length === 0) {
-        console.log('无值')
-        MIP.viewer.open(base.htmlhref.order, { isMipLink: false })
-      } else {
-        console.log('有值')
+      if (!MIP.viewer.page.isRootPage) {
+        console.log('不是手动刷新页面')
 
-        // 配置全局数据标志       当前是  搬出地址选择页面
-        let obj = { currentmap: 'out' }
-        base.mipSetGlobalData(obj)
+        if (MIP.sandbox.BMap && this.init) {
+          this.chatGlobaldata()
+        } else {
+          console.log('初始化====不存在地图环境')
+        }
+
+        // 初始化
+        this.$element.customElement.addEventAction('init', () => {
+          console.log('地图回调加载当前页面的地图')
+          if (this.init) {
+            this.chatGlobaldata()
+          }
+        })
+        // 数据监控
+        this.lxnDataWatch()
 
         // 添加波纹
         this.clickRipple()
+      } else {
+        MIP.viewer.open(base.htmlhref.order, { isMipLink: false })
+        console.log('是手动刷新,跳转回去')
       }
     },
-    // 地图初始化
+    chatGlobaldata () {
+      this.init = false
+      this.interval = setInterval(() => {
+        if (Object.keys(this.globaldata).length > 0) {
+          console.log(Object.keys(this.globaldata).length)
+          clearInterval(this.interval)
+          this.BMap = MIP.sandbox.BMap
+          console.log('=======')
+          this.mapInit()
+        }
+      }, 300)
+    },
+
     mapInit (city) {
       let BMap = this.BMap
       console.log(BMap)
-      let that = this
       let citys = city || this.globaldata.ordercity
       console.log('查看当前城市' + citys)
 
@@ -203,33 +218,33 @@ export default {
       let address = ''
       if (lxndata === null) {
         console.log('无缓存')
-        console.log(this.globaldata)
+        console.log(JSON.stringify(this.globaldata, null, 2))
         address = this.globaldata.moveOutAddress
         console.log(JSON.stringify(address, null, 2))
       } else {
         console.log('有缓存')
         address = lxndata.moveOutAddress
-        let moveout = that.moveOut
+        let moveout = this.moveOut
         moveout.localtion = address.localtion
         moveout.address = address.address
         moveout.phone = address.phone
       }
       let divs = this.$element.querySelector('#l-map')
-      let maps = new BaiduMap(this.$element, divs, address, function (
-        data
-      ) {
+      let maps = new BaiduMap(this.$element, divs, address, (data) => {
         // 还原上次填写的数据
         console.log(JSON.stringify(data, null, 2))
-        let moveout = that.moveOut
+        let moveout = this.moveOut
+        console.log(JSON.stringify(moveout, null, 2))
+        console.log(JSON.stringify(data, null, 2))
         moveout.localtion = data.localtion
         moveout.address = data.address
         moveout.phone = data.phone
-        that.loading = false
+        this.loading = false
       })
       if (BMap.Map) {
         console.log(BMap)
         console.log('存在')
-        this.searchHandler = maps.handleResult(BMap, citys, that.searchResult)
+        this.searchHandler = maps.handleResult(BMap, citys, this.searchResult)
         this.maps = maps.map
       }
     },
@@ -269,7 +284,12 @@ export default {
     },
     // 确认搬出信息
     moveoutSure () {
-      let that = this
+      let inputs = this.$element.querySelectorAll('input:focus')
+      Array.prototype.slice.call(inputs).forEach(ele => {
+        ele.blur()
+      })
+      console.log('查看点击')
+
       let BMap = this.BMap
       let warn = this.warn
       let moveOut = this.moveOut
@@ -301,9 +321,7 @@ export default {
         } else {
           obj = { moveOutAddress: objdata }
         }
-        console.log(JSON.stringify(obj, null, 2))
         let datas = base.mipExtendData(this.globaldata, obj)
-        console.log('配置搬出数据' + JSON.stringify(datas, null, 2))
         base.mipSetGlobalData(obj)
         base.setSession(datas)
 
@@ -312,7 +330,6 @@ export default {
         let moveout = objdata.localtion
         console.log(JSON.stringify(moveout, null, 2))
         console.log(JSON.stringify(movein, null, 2))
-        //   console.log(JSON.stringify(movein, null, 2));
         if (moveout.lat !== '' && movein.lat !== '') {
           let pointOut = new BMap.Point(moveout.lng, moveout.lat)
           let pointIn = new BMap.Point(movein.lng, movein.lat)
@@ -320,16 +337,13 @@ export default {
             this.maps.getDistance(pointOut, pointIn).toFixed(2) / 1000
           console.log('查看距离:' + kilometer)
           let obj = { kilometer: kilometer }
-          //   setTimeout(function() {
-          console.log('保存数据----------')
-          //   let datas = MIP.util.fn.extend({}, datas, obj);
           let datass = base.mipExtendData(datas, obj)
-          console.log(JSON.stringify(datass))
           base.mipSetGlobalData(obj)
           base.setSession(datass)
-          setTimeout(function () {
-            that.goOrder()
-          }, 500)
+
+          setTimeout(() => {
+            this.goOrder()
+          }, 100)
         } else {
           console.log('没计算距离')
           this.goOrder()
@@ -338,39 +352,37 @@ export default {
     },
     // 全局数据监听
     lxnDataWatch () {
-      let that = this
       //   监控 城市 改变
-      MIP.watch('lxndata.ordercity', function (newval, oldval) {
+      MIP.watch('lxndata.ordercity', (newval, oldval) => {
         console.log(
           '=====..............===搬出地址数据=============城市改变了'
         )
         console.log(newval)
-        that.searchVal = ''
-        that.moveOut = {
+        this.searchVal = ''
+        this.moveOut = {
           localtion: {
             title: ''
           },
           address: '',
           phone: ''
         }
-        that.globaldata.ordercity = newval
-        setTimeout(function () {
-          that.mapInit(newval)
+        this.globaldata.ordercity = newval
+        setTimeout(() => {
+          this.mapInit(newval)
         }, 100)
 
         console.log(newval)
-      })
-      //  测试 监控全局数据变化
-      MIP.watch('lxndata', function () {
-        console.log('MIP=============wacth监控=============城市改变了')
       })
     },
     inputGetFocus () {
       this.focusState = true
     },
     goOrder () {
-      //   MIP.viewer.page.router.push(base.htmlhref.order);
-      MIP.viewer.page.router.back()
+      console.log('跳转====')
+      setTimeout(() => {
+        console.log('跳转====')
+        MIP.viewer.page.router.back()
+      }, 100)
     },
     closeLayer () {
       this.warn.show = false
@@ -475,6 +487,7 @@ export default {
 </script>
 
 <style scoped>
+
 #l-map {
   position: absolute;
   top: 0;
@@ -504,7 +517,6 @@ export default {
   position: relative;
 }
 .head a {
-  display: inline-block;
   position: absolute;
   left: 0.32rem;
   font-size: 0.3rem;
@@ -513,19 +525,20 @@ export default {
   display: flex;
   width: 0.9rem;
   z-index: 99999;
-}
-.currentcity {
+  height: 100%;
+  align-items: center;
 }
 
 .arrow-down {
   position: absolute;
-  top: 0.19rem;
+  top: 50%;
   right: 0;
   width: 0;
   height: 0;
   border-left: 0.1rem solid transparent;
   border-right: 0.1rem solid transparent;
   border-top: 0.1rem solid #333333;
+  transform: translateY(-50%);
 }
 
 .s-input {
@@ -541,16 +554,17 @@ export default {
 .search-icon {
   position: absolute;
   left: 1.64rem;
-  top: 0.29rem;
+  top: 50%;
+  transform: translateY(-50%);
 }
 .s-input input {
-  padding-left: 0.46rem;
+  padding-left: 0.5rem;
   width: 100%;
   height: 100%;
   background: #eff9ff;
   border-radius: 1.2rem;
   font-size: 0.28rem;
-  line-height: 1;
+  margin-top: -.01rem;
 }
 .content {
   background: #ffffff;
@@ -594,12 +608,27 @@ export default {
   max-height: unset;
   overflow: unset;
 }
+.content li.result-input{
+    padding: 0;
+}
+.content li.result-input div{
+    height: 100%;
+}
+.content li.result-input .img{
+    top: 50% !important;
+    transform: translateY(-50%);
+}
+.content li.result-input:last-child{
+    border-bottom: none;
+}
+
 .result-input {
   height: 1rem;
 }
 .result-input-first {
   height: 1.1rem;
   overflow: hidden;
+  position: relative;
 }
 .result-input-first p:last-child {
   overflow: hidden;
@@ -609,13 +638,13 @@ export default {
 .result-input input {
   font-size: 0.28rem;
 }
-.result-input .img {
-  top: 0.05rem !important;
-}
+
 .btn-sure {
+  margin-top: 0!important;
+  top: 50%;
+  transform: translateY(-50%);
   position: absolute;
   right: 0;
-  bottom: 0;
   background: #36a0e9;
   box-shadow: 0 1px 1px 0 #cccccc;
   border-radius: 0.04rem;
@@ -624,10 +653,17 @@ export default {
   font-size: 0.34rem !important;
   color: #ffffff !important;
   text-align: center;
-  /* line-height: 0.62rem; */
   letter-spacing: 0.08px;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+.fixsafari-click{
+   width: 100%;
+   background: transparent;
+   position: absolute;
+   left: 0;
+   right: 0;
+   top: 0;
 }
 </style>

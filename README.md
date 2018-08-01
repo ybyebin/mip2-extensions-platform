@@ -1,10 +1,10 @@
 # mip2-extensions-platform
 
-## MIP 2.0 站长组件
+## MIP 2 站长组件
 
 与 MIP 1.0 采用的方式不同，MIP 2.0 以项目（一个站点）的粒度来管理站长组件。每一个项目（使用 `mip2 init` 命令生成）中包含了这个站点所需的所有自定义组件。
 
-MIP 2.0 的站长组件托管在 [Github 站长组件仓库](https://github.com/mipengine/mip2-extensions-platform)，项目结构大致如下：
+MIP 2.0 的站长组件托管在 [Github 站长组件仓库](https://github.com/mipengine/mip2-extensions-platform)，项目结构如下：
 
 ```
 ├──sites
@@ -58,16 +58,17 @@ https://c.mipcdn.com/extensions/platform/v2/test.a.com/mip-example/mip-example.j
 $ mip2 init
 ```
 
-按照提示输入项目名称，如 `cafe.com`，新增了一个站点项目。
+按照提示输入项目名称，如 `cafe.com`，新增一个站点项目。
 
 ```
 $ cd cafe.com
 ```
 切换到站点项目目录即可快速进行组件开发工作了：
 
-- [新增组件](https://github.com/mipengine/mip2/blob/master/docs/cli/start-writing-first-mip.md#2-新建一个自定义组件)
-- [调试组件](https://github.com/mipengine/mip2/blob/master/docs/cli/component-testing.md)
-- [校验组件](https://github.com/mipengine/mip2/blob/master/docs/cli/cli-usage.md#组件和页面校验)
+- [组件开发](https://github.com/mipengine/mip2/blob/master/docs/guide/mip-cli/component-development.md)
+- [调试](https://github.com/mipengine/mip2/blob/master/docs/guide/mip-cli/component-testing.md)
+- [校验](https://github.com/mipengine/mip2/blob/master/docs/guide/mip-cli/cli-usage.md#mip2-validate-%E7%BB%84%E4%BB%B6%E5%92%8C%E9%A1%B5%E9%9D%A2%E6%A0%A1%E9%AA%8C)
+
 
 3.**发起 Pull Request**
 
@@ -83,5 +84,4 @@ $ cd cafe.com
 // 页面中引用
 <script src="https://c.mipcdn.com/extensions/platform/v2/{站点项目名}/{组件名}/{组件名}.js"></script>
 ```
-
 

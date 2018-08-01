@@ -1,40 +1,25 @@
 <template>
-  <mip-fixed
-    class="container"
-    type="top"
-    top="0"
-    bottom="0">
-    <mip-iframe
-      :src="url"
-      height="100%"
-      width="100%"
-      scrolling="yes"
-      frameborder="0"
-      layout="fill"/>
-  </mip-fixed>
-
+  <mip-iframe
+    :src="url"
+    height="100%"
+    width="100%"
+    scrolling="yes"
+    frameborder="0"
+    layout="fill"/>
 </template>
 
-<style scoped>
-    .container {
-        top: 0;
-        left: 0;
-        bottom: 0;
-        right: 0;
-        width: 100%;
-        min-height: 505px;
-    }
-</style>
+<style scoped></style>
 
 <script>
 
-import {getQuery, getUUID, getRedirectUrl} from './util'
+import {getQuery, getUUID, getRedirectUrl, log} from './util'
 
 export default {
   data () {
     /* eslint-disable */
     let redirect_uri = getQuery('redirect_uri')
     let client_id = getQuery('client_id')
+    let xzh_id = getQuery('appid')
 
 
     let uuid = getUUID()
@@ -49,6 +34,7 @@ export default {
       config: {
         redirect_uri,
         client_id,
+        xzh_id,
         state,
         uuid
       },
@@ -56,6 +42,7 @@ export default {
       url: 'https://openapi.baidu.com/oauth/2.0/mip/authorize?response_type=code' +
                 '&scope=snsapi_userinfo' +
                 '&confirm_login=2' +
+                '&modal=1' +
                 '&client_id=' + client_id +
                 '&redirect_uri=' + encodeURIComponent(redirect_uri) +
                 '&state=' + encodeURIComponent(JSON.stringify(state)) +
@@ -118,10 +105,31 @@ export default {
           state: JSON.stringify(config.state)
         }
 
-        window.MIP.viewer.open(
-          getRedirectUrl(config.state.url || config.redirect_uri, obj),
-          {isMipLink: true, replace: true}
-        )
+        let hash = config.state.h || ''
+
+        // 判断如果是在SF里广播事件，并且返回原页面
+        if (!window.MIP.standalone && config.state.back) {
+          window.MIP.viewer.page.broadcastCustomEvent({
+            name: 'inservice-auth-logined',
+            data: {
+              code: obj.code,
+              origin: config.state.origin,
+              callbackurl: config.state.url
+            }
+          })
+          window.MIP.viewer.page.back()
+        } else {
+          // 否则
+          window.MIP.viewer.open(
+            getRedirectUrl(config.state.url || config.redirect_uri, obj, decodeURIComponent(hash)),
+            {isMipLink: true, replace: true}
+          )
+        }
+      } else if (type === 'oauth-page-log') {
+        let { action, ext = {} } = value
+        /* eslint-disable */
+        log(action, ext, config.xzh_id)
+        /* eslint-enable */
       }
     }
   }
